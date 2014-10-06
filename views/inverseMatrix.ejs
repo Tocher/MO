@@ -1,0 +1,516 @@
+<% layout('layout/page') %>
+
+<section class="container">
+
+  <div class="overlay"></div>
+
+  <h3>Нахождение обратной матрицы</h3>
+
+  <div class="col-md-6">
+  	<div class="row">
+	    <div class="form-group col-md-3">
+	      <div class="input-group">
+	        <div class="input-group-addon">N</div>
+	        <input id="matrixSize" class="form-control" type="text" placeholder="" value="3">
+	      </div>
+	    </div>
+	    <div class="col-md-3">
+	      <button id="setMatrix" type="button" class="btn btn-primary">Задать размер</button>
+	    </div>
+	</div>
+
+    <hr/>
+
+    <div id="matrix">
+      <table class="table table-bordered">
+        
+      </table>
+      <button id="getInverseMatrix" type="button" class="btn btn-success pull-right hidden">Запуск</button>
+      <button id="setRandomNumbers" type="button" class="btn btn-default hidden">Random</button>
+    </div>
+
+    <hr/>
+
+    <div id="answer">
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <h3>Ход выполнения</h3>
+    <div id="output">
+
+    </div>
+  </div>
+
+</section>
+
+<script type="text/javascript">
+	$("#setMatrix").click(function() {
+	    var size = $("#matrixSize").val();
+	    var matrixForm;
+
+	    for(var i = 0; i < size; i++) {
+	    	matrixForm += '<tr>';
+	    	for(var j = 0; j < size; j++) {
+	    		matrixForm += '<td><input class="form-control" type="text" data-row="'+i+'" data-col="'+j+'"></td>';
+	    	}
+	    	matrixForm += '</tr>';
+	    }
+
+	    var matrix = $("#matrix");
+	    matrix.find("table").html(matrixForm);
+	    matrix.find("button").removeClass("hidden");
+	});
+
+	$("#setRandomNumbers").click(function() {
+		$("#matrix").find("input").each(function(i) {
+			$(this).val(getRandom());
+		});
+	});
+
+	getRandom = function() {
+		return Math.round(10 * Math.random());
+	}
+
+	renderJ = function(setJ) {
+		var out = '';
+		for (var i = 0; i < setJ.length; i++) {
+			if(setJ[i] != 0) {
+				out += setJ[i];
+				if(i<setJ.length-1)
+					out += ',';
+			}			
+		};
+		return out;
+	}
+
+	$("#getInverseMatrix").click(function() {
+		var dimension = $("#matrixSize").val();		
+		var array = [];
+
+		// Считываем исходную матрицу
+		$("#matrix").find("input").each(function(i) {	
+			var r = $(this).data("row");		
+			var c = $(this).data("col");
+			if(c == 0)
+				array[r] = [];
+			array[r][c] = $(this).val();
+		});
+
+		var matrix = new Matrix(dimension, dimension, array);
+
+		var output = '';
+
+		var EPSILON = 0.000000001;
+
+		var identityMatrix = matrix.getIdentityMatrix(dimension);
+		var inverseMatrix = matrix.getIdentityMatrix(dimension);
+		var newMatrix = matrix.getIdentityMatrix(dimension);
+		
+		var hasSolution = false;
+		
+		var setJ = [];
+		for (var i = 1; i <= dimension; i++) {
+			setJ.push(i);
+		}
+
+		var setS = [];
+		for (var i = 0; i < dimension; i++) {
+			setS.push(0);
+		}
+
+		var k = 0;
+
+		for (var i = 0; i < dimension; i++) {
+
+			output += '<h4>Новая итерация</h4><p><span class="imp">i = '+ i +',</span> ';
+			output += '<span class="imp">J = {' + renderJ(setJ) + '},</span></p>';
+			output += '<div class="alpha"><span class="imp">C<span class="index">(' + i + ')</span>:</span>';
+			output += outputMatrix(newMatrix);
+			output += '<span class="imp" style="margin-left: 10px;">B<span class="index">(' + i + ')</span>:</span>';
+			output += outputMatrix(inverseMatrix);
+			output += '</div>';
+
+			for (var j = 1; j <= dimension; j++) {
+				if (!contains(setJ, j)) {
+					continue;
+				}
+				output += '<div class="alpha">&alpha; = ' + outputMatrix(identityMatrix.getRow(i + 1)) + ' * ' + outputMatrix(inverseMatrix) + ' * ' + outputMatrix(matrix.getCol(j)) + ' = ';
+				var alpha = identityMatrix.getRow(i + 1).multiply(inverseMatrix).multiply(matrix.getCol(j));
+				output += alpha.getValue(1, 1) + '</div>';
+				if ( Math.abs(alpha.getValue(1, 1) ) >= EPSILON ) {				//!= 0
+					hasSolution = true;
+					k = j;
+					output += '<p><span class="imp">k = ' + k + '</span></p>';
+					break;
+				}
+
+			}
+
+			if (hasSolution) {
+				hasSolution = false;
+
+				var column = matrix.getCol(k);
+
+				setJ[k - 1] = 0;												//J(i)\{k}
+				setS[k - 1] = i + 1;
+
+				newMatrix.setCol(i + 1, column.elements);
+				output += '<div class="alpha">';
+				output += '<span class="imp">C<span class="index">(' + (i + 1) + ')</span>:</span>';
+				output += outputMatrix(newMatrix);
+
+
+				//finding k-column in the matrix D
+				var newColumn = inverseMatrix.multiply(column);
+				var z_k = newColumn.elements[i][0];
+				for (var index = 0; index < newColumn.rowsNumber; index++) {
+					newColumn.elements[index][0] /= -z_k;
+				}
+				newColumn.elements[i][0] = 1 / z_k;
+
+				var D = matrix.getIdentityMatrix(dimension).setCol(i + 1, newColumn.elements);
+
+				output += '<span class="imp" style="margin-left: 10px;">B<span class="index">(' + (i + 1) + ')</span>:</span> ';
+				output += outputMatrix(D) + ' <span class="middle">*</span> ' + outputMatrix(inverseMatrix);
+
+				inverseMatrix = D.multiply(inverseMatrix);
+
+				output += ' = ' + outputMatrix(inverseMatrix);
+				output+= '</div>';
+			}	
+			else {
+				console.log('Inverse matrix doesn\'t exist');
+				inverseMatrix = false;
+				break;
+			}
+
+			output+= '<hr>';
+
+		}
+
+		if (inverseMatrix) {
+			var rows = [];
+			for (var i = 0; i < dimension; i++) {
+				rows.push(inverseMatrix.elements[i]);
+			}
+
+			output += '<span class="imp">S = {' + setS + '}</span>';
+
+			var resultArray = [];
+			for (var i = 0; i < dimension; i++) {
+				resultArray.push(rows[setS[i] - 1]);
+			}
+
+
+			//rounding
+			for (var i = 0; i < dimension; i++) {
+				for (var j = 0; j < dimension; j++) {
+					if (isFloat(resultArray[i][j])) {
+						resultArray[i][j] = floatToRat(resultArray[i][j]);
+					}
+				}
+			}
+
+			inverseMatrix = new Matrix(dimension, dimension, resultArray);
+
+		}
+
+		output += '<h4 class="stop">END</h4>'
+		/*stop*/
+
+		if (inverseMatrix) {
+			$("#answer").html("<h3>Обратная матрица:</h3>" + outputMatrix(inverseMatrix));
+		}
+		else {
+			$("#answer").html("<h3>Обратной матрицы не существует.</h3>");
+		}
+		$("#output").html(output);
+	});
+
+
+
+// Render
+function isFloat(n) {
+	return n % 1 != 0;
+};
+
+function contains(a, obj) {
+    for (var index = 0; index < a.length; index++) {
+        if (a[index] === obj) {
+            return true;
+        }
+    }
+    return false;
+};
+
+function floatToRat(x) {
+    var tolerance = 1.0E-6;
+    var h1 = 1; 
+    var h2 = 0;
+    var k1 = 0; 
+    var k2 = 1;
+    var posX = Math.abs(x);
+    var b = posX;
+    do {
+        var a = Math.floor(b);
+        var aux = h1; 
+        h1 = a * h1 + h2; 
+        h2 = aux;
+        aux = k1;
+        k1 = a * k1 + k2; 
+        k2 = aux;
+        b = 1 / (b - a);
+    } while (Math.abs(posX - h1 / k1) > posX * tolerance);
+    
+    if (x < 0) {
+    	return "-" + h1 + "/" + k1;
+    }
+
+    return h1 + "/" + k1;
+};
+
+function outputMatrix(matrix) {
+	var output = '<table class="table-bordered table-condensed"><tbody>';
+
+	for (var i = 0; i < matrix.rowsNumber; i++) {
+		output += '<tr>';
+		for (var j = 0; j < matrix.colsNumber; j++) {
+			output += '<td>' + matrix.elements[i][j] + '</td>';
+		}
+		output += '</tr>';
+	}
+
+	output += '</tbody></table>';
+	return output;
+}
+
+
+// Алгоритм
+var method = Matrix.prototype;
+
+function Matrix(rowsNumber, colsNumber, elements) {
+	this.rowsNumber = rowsNumber;
+	this.colsNumber = colsNumber;
+	this.elements = elements;
+}
+
+method.getValue = function(i, j) {
+	return this.elements[i - 1][j - 1];
+}
+
+method.insertValue = function(i, j, value) {
+	this.elements[i - 1][j - 1] = value;
+	return this;
+}
+
+method.getRow = function(i) {
+	var array = [ this.elements[i - 1] ];
+	return new Matrix(1, this.colsNumber, array);
+}
+
+method.getCol = function(j) {
+	var array = [];
+	for (var i = 0; i < this.rowsNumber; i++) {
+		array[i] = [];
+		array[i].push(this.elements[i][j - 1]);
+	}
+	return new Matrix(this.rowsNumber, 1, array);
+}
+
+method.setRow = function(i, newRow) {
+	for (var j = 0; j < this.colsNumber; j++) {
+		this.elements[i - 1][j] = newRow[0][j];
+	}
+	return this;
+}
+
+method.setCol = function(j, newColumn) {
+	for (var i = 0; i < this.rowsNumber; i++) {
+		this.elements[i][j - 1] = newColumn[i][0];
+	}
+	return this;
+}
+
+method.getIdentityMatrix = function(dimension) {
+	var array = [];
+	for (var i = 0; i < dimension; i++) {
+		array[i] = [];
+		for (var j = 0; j < dimension; j++) {
+			array[i].push(0);
+		}
+	}
+
+	for (var i = 0; i < dimension; i++) {
+		array[i][i] = 1;
+	}
+
+	return new Matrix(dimension, dimension, array);
+}
+
+method.multiply = function(matrix) {
+	if (this.colsNumber != matrix.rowsNumber) {
+		return false;
+	}
+	
+	var array = [];
+	for (var i = 0; i < this.rowsNumber; i++) {
+		array[i] = [];
+		for (var j = 0; j < matrix.colsNumber; j++) {
+			array[i].push(0);
+		}
+	}
+
+	for (var i = 0; i < this.rowsNumber; i++) {
+		for (var j = 0; j < matrix.colsNumber; j++) {
+			for (var k = 0; k < this.colsNumber; k++) {
+				array[i][j] += this.elements[i][k] * matrix.elements[k][j];
+			}
+		}
+	}
+
+	return new Matrix(this.rowsNumber, matrix.colsNumber, array);
+}
+
+method.inverse = function() {
+
+	var EPSILON = 0.000000001;
+
+	var dimension = this.rowsNumber;
+
+	var identityMatrix = this.getIdentityMatrix(dimension);
+	var inverseMatrix = this.getIdentityMatrix(dimension);
+	
+	var hasSolution = false;
+	
+	var setJ = [];
+	for (var i = 1; i <= dimension; i++) {
+		setJ.push(i);
+	}
+
+	var setS = [];
+	for (var i = 0; i < dimension; i++) {
+		setS.push(0);
+	}
+
+	var k = 0;
+
+	for (var i = 0; i < dimension; i++) {
+
+		for (var j = 1; j <= dimension; j++) {
+			if (!contains(setJ, j)) {
+				continue;
+			}
+			var alpha = identityMatrix.getRow(i + 1).multiply(inverseMatrix).multiply(this.getCol(j));
+			if ( Math.abs(alpha.getValue(1, 1) ) >= EPSILON ) {				//!= 0
+				hasSolution = true;
+				k = j;
+				break;
+			}
+
+		}
+
+		if (hasSolution) {
+			hasSolution = false;
+
+			var column = this.getCol(k);
+
+			setJ[k - 1] = 0;												//J(i)\{k}
+			setS[k - 1] = i + 1;
+
+			//finding k-column in the matrix D
+			var newColumn = inverseMatrix.multiply(column);
+			var z_k = newColumn.elements[i][0];
+			for (var index = 0; index < newColumn.rowsNumber; index++) {
+				newColumn.elements[index][0] /= -z_k;
+			}
+			newColumn.elements[i][0] = 1 / z_k;
+
+			var D = this.getIdentityMatrix(dimension).setCol(i + 1, newColumn.elements);
+
+			inverseMatrix = D.multiply(inverseMatrix);
+		}	
+		else {
+			console.log('Inverse matrix doesn\'t exist');
+			return false;
+		}
+
+	}
+
+
+	var rows = [];
+	for (var i = 0; i < dimension; i++) {
+		rows.push(inverseMatrix.elements[i]);
+	}
+
+	var resultArray = [];
+	for (var i = 0; i < dimension; i++) {
+		resultArray.push(rows[setS[i] - 1]);
+	}
+
+
+	//rounding
+	for (var i = 0; i < dimension; i++) {
+		for (var j = 0; j < dimension; j++) {
+			if (isFloat(resultArray[i][j])) {
+				resultArray[i][j] = floatToRat(resultArray[i][j]);
+			}
+		}
+	}
+
+	inverseMatrix = new Matrix(dimension, dimension, resultArray);
+	
+	return inverseMatrix;
+};
+
+
+
+
+function isFloat(n) {
+   return n % 1 != 0;
+};
+
+
+
+function contains(a, obj) {
+    for (var index = 0; index < a.length; index++) {
+        if (a[index] === obj) {
+            return true;
+        }
+    }
+    return false;
+};
+
+
+
+function floatToRat(x) {
+    var tolerance = 1.0E-6;
+    var h1 = 1; 
+    var h2 = 0;
+    var k1 = 0; 
+    var k2 = 1;
+    var posX = Math.abs(x);
+    var b = posX;
+    do {
+        var a = Math.floor(b);
+        var aux = h1; 
+        h1 = a * h1 + h2; 
+        h2 = aux;
+        aux = k1;
+        k1 = a * k1 + k2; 
+        k2 = aux;
+        b = 1 / (b - a);
+    } while (Math.abs(posX - h1 / k1) > posX * tolerance);
+    
+    if (x < 0) {
+    	return "-" + h1 + "/" + k1;
+    }
+
+    return h1 + "/" + k1;
+};
+
+
+
+
+
+</script> 
