@@ -1,0 +1,74 @@
+<% layout('layout/page') %>
+
+<section class="container">
+
+  <div class="col-md-6">
+  	<h3>Симплекс-метод</h3>
+  	<div class="row">
+      <div class="input-group">
+        <div class="input-group-addon">Количество переменных</div>
+        <input id="matrixSize" class="form-control" type="text" placeholder="" value="3">
+      </div>
+      <br>
+      <div class="input-group">
+        <div class="input-group-addon">Количество ограничений</div>
+        <input id="matrixSize" class="form-control" type="text" placeholder="" value="3">
+      </div>
+      <button id="setSettings" type="button" class="btn btn-default">Задать</button>
+	</div>
+
+    <div id="matrix" class="hidden">
+    	<table class="table table-bordered">
+			
+    	</table>
+		<button id="runSimplexMethod" type="button" class="btn btn-success pull-right">Запуск</button>
+		<button id="setRandomNumbers" type="button" class="btn btn-default">Условия задачи</button>
+    </div>
+
+    <div id="answer">
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <h3>Ход выполнения</h3>
+    <div id="output">
+
+    </div>
+  </div>
+
+</section>
+
+<script type="text/javascript">
+$("#setSettings").click(function() {
+	$("#matrix").removeClass("hidden");
+});
+
+$("#runSimplexMethod").click(function() {
+	var simplex = new Simplex();	
+	simplex.Create();
+});
+
+
+// Алгоритм
+var method = Simplex.prototype;
+
+function Simplex() {
+	this.expressions;
+	this.expBasis = [];
+	this.F;
+	this.FreeVars = [];
+	this.BasisVars = [];
+	this.simplexTable = [];
+}
+
+method.Create = function() {
+	var exp = [];
+	$(".expression").each(function(i, val) {
+		exp.push($(this).val());
+	});
+	this.expressions = exp;
+	this.F = $("#Func").val();
+}
+
+
+</script> 
